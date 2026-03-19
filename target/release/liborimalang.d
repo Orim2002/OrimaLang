@@ -1,1 +1,0 @@
-/home/ori/Projects/OrimaLang/target/release/liborimalang.rlib: /home/ori/Projects/OrimaLang/src/evaluator.rs /home/ori/Projects/OrimaLang/src/lexer.rs /home/ori/Projects/OrimaLang/src/lib.rs /home/ori/Projects/OrimaLang/src/parser.rs
