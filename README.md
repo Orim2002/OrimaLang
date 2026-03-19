@@ -219,18 +219,25 @@ set lower to name in lowercase.
 
 ### 1. Native CLI
 
+**Install globally** (adds `orima` to `~/.cargo/bin`):
+```bash
+cargo install --path .
+```
+
+Or build without installing:
 ```bash
 cargo build --release
+./target/release/orima app.ori
 ```
 
 **Run a file:**
 ```bash
-./target/release/orima app.ori
+orima app.ori
 ```
 
 **Interactive REPL:**
 ```bash
-./target/release/orima repl
+orima repl
 ```
 
 The REPL buffers input until a period `.` is seen, so multi-line statements work naturally.
