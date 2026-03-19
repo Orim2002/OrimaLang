@@ -43,6 +43,7 @@ run bark on myDog.
 ## Language Reference
 
 ### Comments
+
 ```
 note This line is ignored.
 ```
@@ -50,6 +51,7 @@ note This line is ignored.
 ### Strings
 
 String literals must be enclosed in double quotes:
+
 ```
 set greeting to "hello world".
 set name to "Ori".
@@ -62,6 +64,7 @@ Type is inferred from the value:
 - `true` / `false` → boolean
 
 ### Variables
+
 ```
 set age to 25.
 set name to "Ori".
@@ -70,6 +73,7 @@ set x to the value of y.
 ```
 
 ### Arithmetic Statements
+
 ```
 increase score by 10.
 decrease lives by 1.
@@ -78,6 +82,7 @@ divide total by 4.
 ```
 
 ### Math Expressions
+
 ```
 set total to price plus tax.
 set diff to big minus small.
@@ -87,19 +92,24 @@ set rem to number remainder of divided by 3.
 ```
 
 ### Output
+
 ```
 say "hello".
 say "your name is" and name and "nice to meet you".
 ```
+
 `and` in a `say` statement concatenates values with spaces.
 
 ### Input
+
 ```
 ask "enter your name" and store in name.
 ```
+
 The prompt is shown to the user. The variable after `store in` receives the typed value.
 
 ### Conditions
+
 ```
 if age is greater than 17, say "adult", end if.
 if name is "Ori", say "hello Ori", otherwise say "hello stranger", end if.
@@ -119,6 +129,7 @@ if name is "Ori", say "hello Ori", otherwise say "hello stranger", end if.
 | `ends with` | suffix check |
 
 **Logical operators:**
+
 ```
 if age is greater than 17 and also flag is true, say "ok", end if.
 if x is 1 or y is 2, say "yes", end if.
@@ -126,6 +137,7 @@ if it is not the case that flag is true, say "nope", end if.
 ```
 
 ### Loops
+
 ```
 repeat 5 times, say "hello", end repeat.
 
@@ -136,12 +148,14 @@ for each fruit in fruits, say fruit, end for.
 ```
 
 **Loop control:**
+
 ```
 stop the loop.
 skip to next.
 ```
 
 ### Lists (1-indexed)
+
 ```
 create list fruits.
 add "apple" to fruits.
@@ -153,6 +167,7 @@ say the size of fruits.
 ```
 
 ### Functions
+
 ```
 define greet taking name, say "hello" and name, end define.
 run greet with "Ori".
@@ -167,6 +182,7 @@ Functions have their own scope. Parameters are passed by value. Use `give back` 
 ### Classes
 
 **Define a class** with fields and optional methods:
+
 ```
 define class Dog taking name and breed, end class.
 
@@ -177,22 +193,26 @@ end class.
 ```
 
 **Create an instance:**
+
 ```
 create Dog with "Rex" and "Labrador" and store in myDog.
 ```
 
 **Read a field:**
+
 ```
 say the name of myDog.
 set x to the breed of myDog.
 ```
 
 **Set a field:**
+
 ```
 set the name of myDog to "Max".
 ```
 
 **Call a method:**
+
 ```
 run bark on myDog.
 run greet on myDog with "hello".
@@ -202,6 +222,7 @@ run add on myObj with 10 and 20 and store in result.
 Inside a method, all fields of the object are available as local variables by their field name.
 
 ### Text Operations
+
 ```
 set full to first joined with last.
 set len to the length of name.
@@ -220,22 +241,26 @@ set lower to name in lowercase.
 ### 1. Native CLI
 
 **Install globally** (adds `orima` to `~/.cargo/bin`):
+
 ```bash
 cargo install --path .
 ```
 
 Or build without installing:
+
 ```bash
 cargo build --release
 ./target/release/orima app.ori
 ```
 
 **Run a file:**
+
 ```bash
 orima app.ori
 ```
 
 **Interactive REPL:**
+
 ```bash
 orima repl
 ```

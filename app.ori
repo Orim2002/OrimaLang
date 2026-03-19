@@ -1,0 +1,7 @@
+set name to nothing.
+
+if name is nothing,
+  ask "please enter your name" and store in name,
+end if.
+
+say "hello" and name.

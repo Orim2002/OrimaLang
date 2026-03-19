@@ -996,24 +996,33 @@ impl Parser {
     // ── ask ───────────────────────────────────────────────────────────────
 
     fn parse_ask(&self, clause: &[Spanned], line: usize) -> Result<Stmt, String> {
-        // `ask <prompt words> and store in <var>`
-        let words = Self::words(clause);
-        // find "store" preceded by "and"
-        let store_pos = words.iter().position(|w| w == "store");
-        let store_pos = store_pos.ok_or_else(|| format!("OrimaLang Error: 'ask' missing 'store in' on line {line}"))?;
+        // `ask <prompt> and store in <var>`
+        // Find "store in <var>" by scanning the raw token list for the word "store"
+        let store_tok_pos = clause.iter().position(|t| matches!(&t.token, Token::Word(w) if w == "store"));
+        let store_tok_pos = store_tok_pos.ok_or_else(|| format!("OrimaLang Error: 'ask' missing 'store in' on line {line}"))?;
 
-        let var_name = words.get(store_pos + 2)
-            .ok_or_else(|| format!("OrimaLang Error: 'ask' missing variable name on line {line}"))?
-            .clone();
+        let var_name = clause.get(store_tok_pos + 2)
+            .and_then(|t| if let Token::Word(w) = &t.token { Some(w.clone()) } else { None })
+            .ok_or_else(|| format!("OrimaLang Error: 'ask' missing variable name on line {line}"))?;
 
-        // prompt words: everything between "ask" and the "and" before "store"
-        let and_before_store = if store_pos > 0 && words[store_pos - 1] == "and" {
-            store_pos - 1
+        // Prompt: tokens after "ask" up to (and excluding) the "and store" or "store"
+        let end = if store_tok_pos > 0 {
+            if let Token::Word(w) = &clause[store_tok_pos - 1].token {
+                if w == "and" { store_tok_pos - 1 } else { store_tok_pos }
+            } else {
+                store_tok_pos
+            }
         } else {
-            store_pos
+            store_tok_pos
         };
-        let prompt_words: Vec<String> = words[1..and_before_store].to_vec();
-        Ok(Stmt::Ask(prompt_words, var_name))
+
+        let prompt_parts: Vec<String> = clause[1..end].iter().filter_map(|t| match &t.token {
+            Token::Word(w) => Some(w.clone()),
+            Token::StringLit(s) => Some(s.clone()),
+            _ => None,
+        }).collect();
+
+        Ok(Stmt::Ask(prompt_parts, var_name))
     }
 
     // ── Expression parsers ────────────────────────────────────────────────

@@ -3,7 +3,7 @@ use std::env;
 use std::fs;
 use std::io::{self, BufRead, Write};
 
-use orimalang::run_program_internal;
+use orimalang::run_program_interactive;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -25,8 +25,10 @@ fn main() {
                 eprintln!("Error reading '{}': {}", path, e);
                 std::process::exit(1);
             });
-            let output = run_program_internal(&source);
-            print!("{}", output);
+            if let Err(e) = run_program_interactive(&source) {
+                eprintln!("{}", e);
+                std::process::exit(1);
+            }
         }
     }
 }

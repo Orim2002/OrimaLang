@@ -688,7 +688,7 @@ pub fn value_to_string(v: &Value) -> String {
             let parts: Vec<String> = items.iter().map(value_to_string).collect();
             format!("[{}]", parts.join(", "))
         }
-        Value::Nil => "nil".to_string(),
+        Value::Nil => "nothing".to_string(),
         Value::Object(class, fields) => {
             let mut pairs: Vec<String> = fields.iter()
                 .map(|(k, v)| format!("{}: {}", k, value_to_string(v)))

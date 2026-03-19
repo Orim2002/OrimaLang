@@ -13,6 +13,16 @@ use evaluator::{Env, eval_program};
 use lexer::tokenize;
 use parser::parse;
 
+/// Run a complete OrimaLang program interactively — output goes to stdout,
+/// input is read from stdin. Used when running .ori files from the CLI.
+pub fn run_program_interactive(source: &str) -> Result<(), String> {
+    let tokens = tokenize(source);
+    let stmts = parse(tokens)?;
+    let mut env = Env::new();
+    // output_buffer = None → println!/print! go directly to stdout, stdin is live
+    eval_program(&stmts, &mut env)
+}
+
 /// Run a complete OrimaLang program, returning all output as a single string.
 /// Lines are newline-separated. Errors are included as the return value.
 pub fn run_program_internal(source: &str) -> String {
