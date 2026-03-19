@@ -1,0 +1,1 @@
+/home/ori/Projects/OrimaLang/target/wasm32-unknown-unknown/release/orima.wasm: /home/ori/Projects/OrimaLang/src/evaluator.rs /home/ori/Projects/OrimaLang/src/lexer.rs /home/ori/Projects/OrimaLang/src/lib.rs /home/ori/Projects/OrimaLang/src/main.rs /home/ori/Projects/OrimaLang/src/parser.rs
