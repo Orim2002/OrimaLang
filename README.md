@@ -40,6 +40,13 @@ end type.
 
 create Dog with "Rex" and "Labrador" and store in myDog.
 run bark on myDog.
+
+create map scores.
+put 100 in scores at "alice".
+put 85 in scores at "bob".
+say item "alice" from scores.
+if scores has "alice", say "alice is in the map", end if.
+say the keys of scores.
 ```
 
 ---
@@ -142,6 +149,7 @@ if name is "Ori", say "hello Ori", otherwise say "hello stranger", end if.
 | `contains` | substring check |
 | `starts with` | prefix check |
 | `ends with` | suffix check |
+| `has` | map key existence check |
 
 **Logical operators:**
 
@@ -237,6 +245,50 @@ run add on myObj with 10 and 20 and store in result.
 ```
 
 Inside a method, use `field of self` to read fields and `set field of self to value` to write them. Changes to `self` persist on the object after the method returns.
+
+### Maps (Dictionaries)
+
+```ori
+create map scores.
+put 100 in scores at "alice".
+put 85 in scores at "bob".
+put 92 in scores at "carol".
+```
+
+**Read a value:**
+
+```ori
+say item "alice" from scores.
+set x to item "bob" from scores.
+```
+
+Returns `nothing` if the key does not exist.
+
+**Check if a key exists:**
+
+```ori
+if scores has "alice", say "found", end if.
+if scores has "dave", say "yes", otherwise say "no", end if.
+```
+
+**Remove a key:**
+
+```ori
+remove "alice" from scores.
+```
+
+**Number of entries:**
+
+```ori
+say the size of scores.
+```
+
+**All keys (returns a list):**
+
+```ori
+say the keys of scores.
+for each k in the keys of scores, say k and item k from scores, end for.
+```
 
 ### Text Operations
 

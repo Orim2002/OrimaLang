@@ -263,18 +263,24 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Env) -> Result<Signal, String> {
             Ok(Signal::None)
         }
 
-        // ── remove from list (by value) ───────────────────────────────────
+        // ── remove from list (by value) or map (by key) ──────────────────
         Stmt::RemoveFromList(val_expr, list_name) => {
             let val = eval_expr(val_expr, env)?;
-            let list = env.get(list_name).cloned()
-                .ok_or_else(|| format!("OrimaLang Error: undefined list '{list_name}'"))?;
-            let mut items = match list {
-                Value::List(v) => v,
-                _ => return Err(format!("OrimaLang Error: '{list_name}' is not a list")),
-            };
-            let val_str = value_to_string(&val);
-            items.retain(|item| value_to_string(item) != val_str);
-            env.set(list_name, Value::List(items));
+            let container = env.get(list_name).cloned()
+                .ok_or_else(|| format!("OrimaLang Error: undefined variable '{list_name}'"))?;
+            match container {
+                Value::List(mut items) => {
+                    let val_str = value_to_string(&val);
+                    items.retain(|item| value_to_string(item) != val_str);
+                    env.set(list_name, Value::List(items));
+                }
+                Value::Map(mut entries) => {
+                    let key = value_to_string(&val);
+                    entries.remove(&key);
+                    env.set(list_name, Value::Map(entries));
+                }
+                _ => return Err(format!("OrimaLang Error: '{list_name}' is not a list or map")),
+            }
             Ok(Signal::None)
         }
 
@@ -293,6 +299,27 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Env) -> Result<Signal, String> {
             }
             items.remove(idx - 1);
             env.set(list_name, Value::List(items));
+            Ok(Signal::None)
+        }
+
+        // ── create map ───────────────────────────────────────────────────
+        Stmt::CreateMap(name) => {
+            env.set(name, Value::Map(HashMap::new()));
+            Ok(Signal::None)
+        }
+
+        // ── put in map ───────────────────────────────────────────────────
+        Stmt::PutInMap(map_name, key_expr, val_expr) => {
+            let key = value_to_string(&eval_expr(key_expr, env)?);
+            let val = eval_expr(val_expr, env)?;
+            let map = env.get(map_name).cloned()
+                .ok_or_else(|| format!("OrimaLang Error: undefined map '{map_name}'"))?;
+            let mut entries = match map {
+                Value::Map(m) => m,
+                _ => return Err(format!("OrimaLang Error: '{map_name}' is not a map")),
+            };
+            entries.insert(key, val);
+            env.set(map_name, Value::Map(entries));
             Ok(Signal::None)
         }
 
@@ -560,19 +587,23 @@ pub fn eval_expr(expr: &Expr, env: &mut Env) -> Result<Value, String> {
             Ok(Value::Bool(!is_truthy(&iv)))
         }
 
-        Expr::ItemFrom(idx_expr, list_name) => {
-            let idx_val = eval_expr(idx_expr, env)?;
-            let idx = to_num(&idx_val, "list index")? as usize;
-            let list = env.get(list_name).cloned()
-                .ok_or_else(|| format!("OrimaLang Error: undefined list '{list_name}'"))?;
-            match list {
+        Expr::ItemFrom(key_expr, container_name) => {
+            let key_val = eval_expr(key_expr, env)?;
+            let container = env.get(container_name).cloned()
+                .ok_or_else(|| format!("OrimaLang Error: undefined variable '{container_name}'"))?;
+            match container {
                 Value::List(items) => {
+                    let idx = to_num(&key_val, "list index")? as usize;
                     if idx < 1 || idx > items.len() {
-                        return Err(format!("OrimaLang Error: index {idx} out of range for list '{list_name}'"));
+                        return Err(format!("OrimaLang Error: index {idx} out of range for list '{container_name}'"));
                     }
                     Ok(items[idx - 1].clone())
                 }
-                _ => Err(format!("OrimaLang Error: '{list_name}' is not a list")),
+                Value::Map(entries) => {
+                    let key = value_to_string(&key_val);
+                    Ok(entries.get(&key).cloned().unwrap_or(Value::Nil))
+                }
+                _ => Err(format!("OrimaLang Error: '{container_name}' is not a list or map")),
             }
         }
 
@@ -581,7 +612,21 @@ pub fn eval_expr(expr: &Expr, env: &mut Env) -> Result<Value, String> {
                 .ok_or_else(|| format!("OrimaLang Error: undefined variable '{name}'"))?;
             match val {
                 Value::List(items) => Ok(Value::Num(items.len() as f64)),
-                _ => Err(format!("OrimaLang Error: '{name}' is not a list")),
+                Value::Map(entries) => Ok(Value::Num(entries.len() as f64)),
+                _ => Err(format!("OrimaLang Error: '{name}' is not a list or map")),
+            }
+        }
+
+        Expr::KeysOf(name) => {
+            let val = env.get(name).cloned()
+                .ok_or_else(|| format!("OrimaLang Error: undefined map '{name}'"))?;
+            match val {
+                Value::Map(entries) => {
+                    let mut keys: Vec<Value> = entries.into_keys().map(Value::Str).collect();
+                    keys.sort_by(|a, b| value_to_string(a).cmp(&value_to_string(b)));
+                    Ok(Value::List(keys))
+                }
+                _ => Err(format!("OrimaLang Error: '{name}' is not a map")),
             }
         }
 
@@ -671,6 +716,13 @@ fn eval_comparison(left: &Value, cmp: &Comparison, right: &Value) -> Result<bool
             let suffix = value_to_string(right).to_lowercase();
             Ok(s.ends_with(&suffix))
         }
+        Comparison::Has => {
+            let key = value_to_string(right);
+            match left {
+                Value::Map(entries) => Ok(entries.contains_key(&key)),
+                _ => Err(format!("OrimaLang Error: 'has' requires a map on the left side")),
+            }
+        }
     }
 }
 
@@ -698,6 +750,13 @@ pub fn value_to_string(v: &Value) -> String {
             format!("[{}]", parts.join(", "))
         }
         Value::Nil => "nothing".to_string(),
+        Value::Map(entries) => {
+            let mut pairs: Vec<String> = entries.iter()
+                .map(|(k, v)| format!("{}: {}", k, value_to_string(v)))
+                .collect();
+            pairs.sort();
+            format!("{{{}}}", pairs.join(", "))
+        }
         Value::Object(class, fields) => {
             let mut pairs: Vec<String> = fields.iter()
                 .map(|(k, v)| format!("{}: {}", k, value_to_string(v)))
@@ -727,6 +786,7 @@ fn is_truthy(v: &Value) -> bool {
         Value::Num(n) => *n != 0.0,
         Value::Str(s) => !s.is_empty(),
         Value::List(l) => !l.is_empty(),
+        Value::Map(m) => !m.is_empty(),
         Value::Object(_, _) => true,
     }
 }

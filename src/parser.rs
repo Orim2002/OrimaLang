@@ -10,6 +10,7 @@ pub enum Value {
     Num(f64),
     Bool(bool),
     List(Vec<Value>),
+    Map(HashMap<String, Value>),
     Object(String, HashMap<String, Value>),
     Nil,
 }
@@ -27,6 +28,7 @@ pub enum Comparison {
     Contains,
     StartsWith,
     EndsWith,
+    Has,  // map has "key"
 }
 
 #[derive(Debug, Clone)]
@@ -62,6 +64,9 @@ pub enum Expr {
     Concat(Vec<Expr>),
     // Object field access: `the <field> of <objvar>`
     GetField(String, String),
+    // Map key access: `item <key> from <map>` (reuses ItemFrom; Map variant handled in evaluator)
+    // Map keys: `the keys of <map>`
+    KeysOf(String),
 }
 
 // ─── Statement AST ───────────────────────────────────────────────────────────
@@ -84,6 +89,9 @@ pub enum Stmt {
     AddToList(Expr, String),
     RemoveFromList(Expr, String),
     RemoveItemFromList(Expr, String),
+    // Maps (dictionaries)
+    CreateMap(String),
+    PutInMap(String, Expr, Expr),  // map_name, key_expr, val_expr
     Define(String, Vec<String>, Vec<Stmt>),
     Run(String, Vec<Expr>, Option<String>),
     GiveBack(Expr),
@@ -322,10 +330,18 @@ impl Parser {
                 if words.len() >= 2 && words[1] == "list" {
                     let stmt = self.parse_create_list(clause, line)?;
                     Ok((stmt, idx + 1))
+                } else if words.len() >= 2 && words[1] == "map" {
+                    let name = words.get(2).cloned()
+                        .ok_or_else(|| format!("OrimaLang Error: 'create map' needs a name on line {line}"))?;
+                    Ok((Stmt::CreateMap(name), idx + 1))
                 } else {
                     let stmt = self.parse_create_object(clause, line)?;
                     Ok((stmt, idx + 1))
                 }
+            }
+            "put" => {
+                let stmt = self.parse_put_in_map(clause, line)?;
+                Ok((stmt, idx + 1))
             }
             "add" => {
                 let stmt = self.parse_add_to_list(clause, line)?;
@@ -755,6 +771,28 @@ impl Parser {
         Ok(Stmt::RemoveFromList(val_expr, list_name))
     }
 
+    // ── put in map ────────────────────────────────────────────────────────
+
+    fn parse_put_in_map(&self, clause: &[Spanned], line: usize) -> Result<Stmt, String> {
+        // `put <val> in <map> at <key>`
+        let in_pos = clause.iter().position(|t| Self::tok_is_word(t, "in"))
+            .ok_or_else(|| format!("OrimaLang Error: 'put' missing 'in' on line {line}"))?;
+        let at_pos = clause.iter().position(|t| Self::tok_is_word(t, "at"))
+            .ok_or_else(|| format!("OrimaLang Error: 'put' missing 'at' on line {line}"))?;
+        let map_name = match clause.get(in_pos + 1) {
+            Some(t) => match &t.token {
+                Token::Word(w) => w.clone(),
+                _ => return Err(format!("OrimaLang Error: expected map name after 'in' on line {line}")),
+            },
+            None => return Err(format!("OrimaLang Error: missing map name in 'put' on line {line}")),
+        };
+        let val_tokens = &clause[1..in_pos];
+        let key_tokens = &clause[at_pos + 1..];
+        let val_expr = self.parse_value_expr(val_tokens, line)?;
+        let key_expr = self.parse_value_expr(key_tokens, line)?;
+        Ok(Stmt::PutInMap(map_name, key_expr, val_expr))
+    }
+
     // ── define ────────────────────────────────────────────────────────────
 
     fn parse_define(&self, clauses: &[Vec<Spanned>], idx: usize, line: usize) -> Result<(Stmt, usize), String> {
@@ -1182,6 +1220,10 @@ impl Parser {
                     return Some((&tokens[..i], Comparison::EndsWith, &tokens[i + 2..]));
                 }
             }
+            // "has" — map has "key"
+            if Self::tok_is_word(&tokens[i], "has") {
+                return Some((&tokens[..i], Comparison::Has, &tokens[i + 1..]));
+            }
         }
         None
     }
@@ -1278,6 +1320,18 @@ impl Parser {
                 None => return Err(format!("OrimaLang Error: expected list name in 'size of' on line {line}")),
             };
             return Ok(Expr::SizeOf(name));
+        }
+
+        // `the keys of <map>`
+        if Self::starts_with_words(tokens, &["the", "keys", "of"]) {
+            let name = match tokens.get(3) {
+                Some(t) => match &t.token {
+                    Token::Word(w) => w.clone(),
+                    _ => return Err(format!("OrimaLang Error: expected map name in 'keys of' on line {line}")),
+                },
+                None => return Err(format!("OrimaLang Error: expected map name in 'keys of' on line {line}")),
+            };
+            return Ok(Expr::KeysOf(name));
         }
 
         // `the length of <var>`
