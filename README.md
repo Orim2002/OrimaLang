@@ -10,13 +10,17 @@ Keywords are case-insensitive.
 
 ## Quick Example
 
-```
+```ori
 note This is a comment.
-set name to "Ori".
-set score to 0.
+set name to nothing.
+
+if name is nothing,
+  ask "what is your name" and store in name,
+end if.
 
 say "hello" and name.
 
+set score to 0.
 repeat 5 times, increase score by 10, end repeat.
 say "final score is" and score.
 
@@ -30,9 +34,9 @@ for each fruit in fruits, say fruit, end for.
 define greet taking person, say "hello" and person, end define.
 run greet with "World".
 
-define class Dog taking name and breed,
-  define bark, say "Woof I am" and name, end define,
-end class.
+define type Dog taking name and breed,
+  define bark, say "Woof I am" and name of self, end define,
+end type.
 
 create Dog with "Rex" and "Labrador" and store in myDog.
 run bark on myDog.
@@ -44,37 +48,47 @@ run bark on myDog.
 
 ### Comments
 
-```
+```ori
 note This line is ignored.
 ```
 
-### Strings
-
-String literals must be enclosed in double quotes:
-
-```
-set greeting to "hello world".
-set name to "Ori".
-```
+### Values and Types
 
 Type is inferred from the value:
 
-- `"..."` → string
-- all-digit token → number (f64)
-- `true` / `false` → boolean
+```ori
+set name to "Ori".       note string
+set age to 25.           note number
+set flag to true.        note boolean (true / false)
+set result to nothing.   note no value (like null)
+```
 
 ### Variables
 
-```
+```ori
 set age to 25.
 set name to "Ori".
 set flag to true.
 set x to the value of y.
 ```
 
+### Nothing (null)
+
+`nothing` represents the absence of a value. It is falsy in conditions.
+
+```ori
+set name to nothing.
+
+if name is nothing,
+  ask "enter your name" and store in name,
+end if.
+
+say name.
+```
+
 ### Arithmetic Statements
 
-```
+```ori
 increase score by 10.
 decrease lives by 1.
 multiply price by 2.
@@ -83,7 +97,7 @@ divide total by 4.
 
 ### Math Expressions
 
-```
+```ori
 set total to price plus tax.
 set diff to big minus small.
 set area to width times height.
@@ -93,7 +107,7 @@ set rem to number remainder of divided by 3.
 
 ### Output
 
-```
+```ori
 say "hello".
 say "your name is" and name and "nice to meet you".
 ```
@@ -102,7 +116,7 @@ say "your name is" and name and "nice to meet you".
 
 ### Input
 
-```
+```ori
 ask "enter your name" and store in name.
 ```
 
@@ -110,15 +124,16 @@ The prompt is shown to the user. The variable after `store in` receives the type
 
 ### Conditions
 
-```
+```ori
 if age is greater than 17, say "adult", end if.
 if name is "Ori", say "hello Ori", otherwise say "hello stranger", end if.
 ```
 
 **Comparison operators:**
+
 | Phrase | Meaning |
-|---|---|
-| `is` | equality (case-insensitive for strings) |
+| --- | --- |
+| `is` | equality |
 | `is not` | inequality |
 | `is greater than` | `>` |
 | `is less than` | `<` |
@@ -130,7 +145,7 @@ if name is "Ori", say "hello Ori", otherwise say "hello stranger", end if.
 
 **Logical operators:**
 
-```
+```ori
 if age is greater than 17 and also flag is true, say "ok", end if.
 if x is 1 or y is 2, say "yes", end if.
 if it is not the case that flag is true, say "nope", end if.
@@ -138,7 +153,7 @@ if it is not the case that flag is true, say "nope", end if.
 
 ### Loops
 
-```
+```ori
 repeat 5 times, say "hello", end repeat.
 
 set count to 1.
@@ -149,14 +164,14 @@ for each fruit in fruits, say fruit, end for.
 
 **Loop control:**
 
-```
+```ori
 stop the loop.
 skip to next.
 ```
 
 ### Lists (1-indexed)
 
-```
+```ori
 create list fruits.
 add "apple" to fruits.
 add "banana" to fruits.
@@ -168,7 +183,7 @@ say the size of fruits.
 
 ### Functions
 
-```
+```ori
 define greet taking name, say "hello" and name, end define.
 run greet with "Ori".
 
@@ -179,51 +194,53 @@ say result.
 
 Functions have their own scope. Parameters are passed by value. Use `give back` to return a value.
 
-### Classes
+### Types (Objects)
 
-**Define a class** with fields and optional methods:
+**Define a type** with fields and optional methods:
 
-```
-define class Dog taking name and breed, end class.
-
-define class Dog taking name and breed,
-  define bark, say "Woof I am" and name, end define,
-  define describe, say name and "is a" and breed, end define,
-end class.
+```ori
+define type Dog taking name and breed,
+  define bark,
+    say "Woof I am" and name of self,
+  end define,
+  define rename taking new_name,
+    set name of self to new_name,
+  end define,
+end type.
 ```
 
 **Create an instance:**
 
-```
+```ori
 create Dog with "Rex" and "Labrador" and store in myDog.
 ```
 
 **Read a field:**
 
-```
-say the name of myDog.
-set x to the breed of myDog.
+```ori
+say name of myDog.
+set x to breed of myDog.
 ```
 
 **Set a field:**
 
-```
-set the name of myDog to "Max".
+```ori
+set name of myDog to "Max".
 ```
 
 **Call a method:**
 
-```
+```ori
 run bark on myDog.
-run greet on myDog with "hello".
+run rename on myDog with "Buddy".
 run add on myObj with 10 and 20 and store in result.
 ```
 
-Inside a method, all fields of the object are available as local variables by their field name.
+Inside a method, use `field of self` to read fields and `set field of self to value` to write them. Changes to `self` persist on the object after the method returns.
 
 ### Text Operations
 
-```
+```ori
 set full to first joined with last.
 set len to the length of name.
 set upper to name in uppercase.
@@ -301,7 +318,7 @@ Then open `http://localhost:8080` in your browser (note: `http://`, not `https:/
 
 ## Project Structure
 
-```
+```text
 OrimaLang/
 ├── Cargo.toml
 ├── src/
@@ -321,7 +338,7 @@ OrimaLang/
 
 All errors include a description and line number:
 
-```
+```text
 OrimaLang Error: undefined variable 'foo' on line 3
 OrimaLang Error: unknown statement keyword 'xyz' on line 7
 OrimaLang Error: index 5 out of range for list 'fruits' on line 12

@@ -405,7 +405,10 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Env) -> Result<Signal, String> {
 
             env.push_frame();
 
-            // Set each object field as a local variable
+            // Bind `self` to the full object so methods can use self.field
+            env.set_local("self", Value::Object(class_name.clone(), obj_fields.clone()));
+
+            // Also bind each field as a local variable (backwards compat)
             for (fname, fval) in &obj_fields {
                 env.set_local(fname, fval.clone());
             }
@@ -429,7 +432,13 @@ pub fn eval_stmt(stmt: &Stmt, env: &mut Env) -> Result<Signal, String> {
                 }
             }
 
-            env.pop_frame();
+            // Sync self back to the original object variable so mutations persist
+            if let Some(Value::Object(_, updated_fields)) = env.get("self").cloned() {
+                env.pop_frame();
+                env.set(obj_var, Value::Object(class_name, updated_fields));
+            } else {
+                env.pop_frame();
+            }
 
             if let Some(var) = store_var {
                 env.set(var, result);

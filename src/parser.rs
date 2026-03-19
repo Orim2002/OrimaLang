@@ -337,7 +337,7 @@ impl Parser {
             }
             "define" => {
                 let words = Self::words(clause);
-                if words.len() >= 2 && words[1] == "class" {
+                if words.len() >= 2 && words[1] == "type" {
                     self.parse_define_class(clauses, idx, line)
                 } else {
                     self.parse_define(clauses, idx, line)
@@ -423,9 +423,36 @@ impl Parser {
 
     // ── set ───────────────────────────────────────────────────────────────
 
-    /// `set <name> to <expr>` or `set the <field> of <obj> to <expr>`
+    /// `set <name> to <expr>`, `set <field> of <obj> to <expr>`, or `set the <field> of <obj> to <expr>`
     fn parse_set(&self, clause: &[Spanned], line: usize) -> Result<Stmt, String> {
-        // Detect `set the <field> of <obj> to <expr>`
+        // Detect `set <field> of <obj> to <expr>` or `set the <field> of <obj> to <expr>`
+        // Look for "of" followed later by "to" — that means it's a field assignment
+        let of_pos = clause.iter().position(|t| Self::tok_is_word(t, "of"));
+        let to_pos = clause.iter().rposition(|t| Self::tok_is_word(t, "to"));
+        if let (Some(of_p), Some(to_p)) = (of_pos, to_pos) {
+            if of_p > 1 && to_p > of_p {
+                // field name: words between "set" (skip "the" if present) and "of"
+                let field_start = if Self::tok_is_word(&clause[1], "the") { 2 } else { 1 };
+                let field_name = clause[field_start..of_p].iter()
+                    .filter_map(|t| if let Token::Word(w) = &t.token { Some(w.clone()) } else { None })
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let obj_name = match clause.get(of_p + 1) {
+                    Some(t) => match &t.token {
+                        Token::Word(w) => w.clone(),
+                        _ => return Err(format!("OrimaLang Error: expected object variable name after 'of' on line {line}")),
+                    },
+                    None => return Err(format!("OrimaLang Error: expected object variable name after 'of' on line {line}")),
+                };
+                if !field_name.is_empty() {
+                    let val_tokens = &clause[to_p + 1..];
+                    let val_expr = self.parse_expr(val_tokens, line)?;
+                    return Ok(Stmt::SetField(obj_name, field_name, val_expr));
+                }
+            }
+        }
+
+        // Detect `set the <field> of <obj> to <expr>` (legacy — now handled above, kept for clarity)
         if clause.len() >= 2 && Self::tok_is_word(&clause[1], "the") {
             // Find "of" position
             let of_pos = clause.iter().position(|t| Self::tok_is_word(t, "of"));
@@ -762,15 +789,15 @@ impl Parser {
         Ok((Stmt::Define(func_name, params, body), next))
     }
 
-    // ── define class ──────────────────────────────────────────────────────
+    // ── define type ───────────────────────────────────────────────────────
 
     fn parse_define_class(&self, clauses: &[Vec<Spanned>], idx: usize, line: usize) -> Result<(Stmt, usize), String> {
-        // `define class <Name> taking <f1> and <f2> ...`
+        // `define type <Name> taking <f1> and <f2> ...`
         let clause = &clauses[idx];
         let words = Self::words(clause);
-        // words[0]=define words[1]=class words[2]=ClassName [words[3]=taking ...]
+        // words[0]=define words[1]=type words[2]=TypeName [words[3]=taking ...]
         if words.len() < 3 {
-            return Err(format!("OrimaLang Error: 'define class' needs a class name on line {line}"));
+            return Err(format!("OrimaLang Error: 'define type' needs a type name on line {line}"));
         }
         let class_name = words[2].clone();
 
@@ -792,8 +819,8 @@ impl Parser {
             // Stop at "end class"
             if Self::is_end_marker(&clauses[i]) {
                 let end_words = Self::words(&clauses[i]);
-                if end_words.len() >= 2 && end_words[1] == "class" {
-                    i += 1; // consume "end class"
+                if end_words.len() >= 2 && end_words[1] == "type" {
+                    i += 1; // consume "end type"
                     break;
                 }
                 // Some other end marker — let outer context handle
@@ -1300,6 +1327,27 @@ impl Parser {
                 None => return Err(format!("OrimaLang Error: expected variable name in 'value of' on line {line}")),
             };
             return Ok(Expr::Variable(name));
+        }
+
+        // `<field> of <obj>` — e.g. color of self (no "the" required)
+        if let Some(of_pos) = tokens.iter().position(|t| Self::tok_is_word(t, "of")) {
+            if of_pos >= 1 && of_pos + 1 < tokens.len() {
+                // field start: skip "the" if present
+                let field_start = if Self::tok_is_word(&tokens[0], "the") { 1 } else { 0 };
+                if of_pos > field_start {
+                    let field_name = tokens[field_start..of_pos].iter()
+                        .filter_map(|t| if let Token::Word(w) = &t.token { Some(w.clone()) } else { None })
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    if let Some(obj_tok) = tokens.get(of_pos + 1) {
+                        if let Token::Word(obj_name) = &obj_tok.token {
+                            if !field_name.is_empty() && tokens.len() == of_pos + 2 {
+                                return Ok(Expr::GetField(obj_name.clone(), field_name));
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // `the <field> of <objvar>` — after existing specific "the X of" checks
